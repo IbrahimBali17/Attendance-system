@@ -1,0 +1,25 @@
+# Render Blueprint - deploys the ASP.NET Core API as a Docker web service.
+# PostgreSQL = Railway, Redis = Upstash (create them first and paste the connection strings below).
+services:
+  - type: web
+    name: attendance-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL            # Railway: postgres://user:pass@host:port/db
+        sync: false
+      - key: Redis__ConnectionString # Upstash: rediss://default:<password>@<host>:6379
+        sync: false
+      - key: Jwt__Key
+        generateValue: true          # Render generates a long random secret
+      - key: AllowedOrigins          # your Vercel URL, e.g. https://hu-attendance.vercel.app
+        sync: false
+      - key: Firebase__CredentialsBase64
+        sync: false
+      - key: Seed__Enabled
+        value: "true"                # demo data; set to false once you have real users
+      - key: Swagger__Enabled
+        value: "true"

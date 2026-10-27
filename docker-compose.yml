@@ -1,0 +1,41 @@
+# Local stack: PostgreSQL 15 + Redis 7 + the ASP.NET Core API on http://localhost:8080
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: attendance
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d attendance"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: ./backend
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    ports: ["8081:8080"]
+    environment:
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=attendance;Username=postgres;Password=postgres"
+      Redis__ConnectionString: "redis:6379"
+      Jwt__Key: "local-dev-key-change-me-local-dev-key-change-me-0123456789"
+      AllowedOrigins: "http://localhost:5173,http://localhost:4173"
+      Seed__Enabled: "true"
+      Swagger__Enabled: "true"
+
+volumes:
+  pgdata:

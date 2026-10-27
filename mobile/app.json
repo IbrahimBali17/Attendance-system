@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "HU Attendance",
+    "slug": "hu-attendance",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "huattendance",
+    "android": {
+      "package": "jo.edu.hu.attendance",
+      "versionCode": 1,
+      "permissions": ["CAMERA", "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION", "POST_NOTIFICATIONS"],
+      
+    },
+    "plugins": [
+      ["expo-camera", { "cameraPermission": "Allow HU Attendance to use the camera to scan the class QR code." }],
+      ["expo-location", { "locationWhenInUsePermission": "Allow HU Attendance to verify that you are in the classroom." }],
+      "expo-notifications",
+      "expo-secure-store"
+    ],
+    "extra": {
+      "eas": { "projectId": "REPLACE_WITH_YOUR_EAS_PROJECT_ID" }
+    }
+  }
+}

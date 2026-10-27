@@ -1,0 +1,11 @@
+bin/
+obj/
+node_modules/
+dist/
+.expo/
+*.apk
+.env
+google-services.json
+**/appsettings.Local.json
+test-results/
+playwright-report/
