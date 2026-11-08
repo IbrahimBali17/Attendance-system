@@ -14,10 +14,10 @@ function CountdownRing({ rotatedAt }) {
     return () => clearInterval(id);
   }, [rotatedAt]);
   return (
-    <svg className="ring" viewBox="0 0 120 120" aria-label={`QR refreshes in ${Math.ceil(left)} seconds`}>
-      <circle cx="60" cy="60" r="54" className="ring-bg" />
-      <circle cx="60" cy="60" r="54" className="ring-fg" strokeDasharray={RING} strokeDashoffset={RING * (1 - left / ROTATE_SECONDS)} />
-      <text x="60" y="68" textAnchor="middle" className="ring-text">{Math.ceil(left)}s</text>
+    <svg className="ring" viewBox="0 0 0 0" aria-label={`QR refreshes in ${Math.ceil(left)} seconds`}>
+      <circle cx="0" cy="0" r="54" className="ring-bg" />
+      <circle cx="0" cy="0" r="54" className="ring-fg" strokeDasharray={RING} strokeDashoffset={RING * (1 - left / ROTATE_SECONDS)} />
+      <text x="0" y="8" textAnchor="middle" className="ring-text">{Math.ceil(left)}s</text>
     </svg>
   );
 }
@@ -169,7 +169,7 @@ export default function Session() {
               <>
                 <div className="qr-box" data-testid="qr-code">
                   <QRCodeSVG value={qr.payload} size={300} level="M" marginSize={2} />
-                  <CountdownRing rotatedAt={rotatedAt} />
+                  
                 </div>
                 <p className="muted">Students scan this code with the attendance app.</p>
                 <p className={`conn ${connected ? 'ok' : 'down'}`}>{connected ? 'Live feed connected' : 'Reconnecting...'}</p>

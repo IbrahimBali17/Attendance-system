@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { Camera as LegacyCamera } from 'expo-camera/legacy';
 import * as Location from 'expo-location';
 import { useFocusEffect } from '@react-navigation/native';
 import { api, errorMessage } from '../api';
@@ -8,11 +9,20 @@ import { colors } from '../theme';
 import { Button, Empty } from '../ui';
 import { t } from '../i18n';
 
+const VERSION = 'v3';
+
 export default function CheckInScreen() {
   const [permission, requestPermission] = useCameraPermissions();
-  const [sessions, setSessions] = useState(null);       // null = loading
+  const [sessions, setSessions] = useState(null);        // null = still loading
   const [state, setState] = useState({ phase: 'scan' }); // scan | checking | done
+  // "legacy" uses the older Android camera engine, which draws correctly on phones where the new one shows a grey screen.
+  const [engine, setEngine] = useState('legacy');
+  const [cameraKey, setCameraKey] = useState(0);
+  const [cameraOn, setCameraOn] = useState(false);
+  const [camReady, setCamReady] = useState(false);
+  const [camError, setCamError] = useState('');
   const busy = useRef(false);
+  const timer = useRef(null);
 
   const loadSessions = useCallback(async () => {
     try {
@@ -23,11 +33,26 @@ export default function CheckInScreen() {
     }
   }, []);
 
+  // Android needs a moment to release the camera before it can be opened again.
+  const startCamera = useCallback((delay = 500) => {
+    clearTimeout(timer.current);
+    setCameraOn(false);
+    setCamReady(false);
+    setCamError('');
+    setCameraKey((k) => k + 1);
+    timer.current = setTimeout(() => setCameraOn(true), delay);
+  }, []);
+
   useFocusEffect(useCallback(() => {
     busy.current = false;
     setState({ phase: 'scan' });
     loadSessions();
-  }, [loadSessions]));
+    startCamera(500);
+    return () => {               // leaving the tab: release the camera completely
+      clearTimeout(timer.current);
+      setCameraOn(false);
+    };
+  }, [loadSessions, startCamera]));
 
   const handleScan = async ({ data }) => {
     if (busy.current) return;
@@ -52,7 +77,17 @@ export default function CheckInScreen() {
     }
   };
 
-  const reset = () => { busy.current = false; setState({ phase: 'scan' }); loadSessions(); };
+  const reset = () => {
+    busy.current = false;
+    setState({ phase: 'scan' });
+    loadSessions();
+    startCamera(500);
+  };
+
+  const switchEngine = () => {
+    setEngine((e) => (e === 'legacy' ? 'new' : 'legacy'));
+    startCamera(500);
+  };
 
   if (!permission) return <View style={styles.center}><ActivityIndicator /></View>;
   if (!permission.granted) {
@@ -100,24 +135,56 @@ export default function CheckInScreen() {
     );
   }
 
+  const status = camError ? `ERROR: ${camError}` : camReady ? t('scanHint') : 'Starting camera...';
+
+  const renderCamera = () => {
+    if (!cameraOn) {
+      return <View style={styles.placeholder}><ActivityIndicator size="large" color="#fff" /></View>;
+    }
+    const common = {
+      key: cameraKey,
+      style: StyleSheet.absoluteFill,
+      onCameraReady: () => setCamReady(true),
+      onMountError: (e) => setCamError(e?.message || 'The camera could not start.'),
+    };
+    if (engine === 'legacy') {
+      return <LegacyCamera {...common} barCodeScannerSettings={{ barCodeTypes: ['qr'] }} onBarCodeScanned={handleScan} />;
+    }
+    return <CameraView {...common} facing="back" barcodeScannerSettings={{ barcodeTypes: ['qr'] }} onBarcodeScanned={handleScan} />;
+  };
+
+  // Everything except the camera itself is in normal layout flow, so it stays visible even if the camera surface misbehaves.
   return (
-    <View style={{ flex: 1, backgroundColor: '#000' }}>
-      <CameraView style={StyleSheet.absoluteFill} facing="back"
-        barcodeScannerSettings={{ barcodeTypes: ['qr'] }} onBarcodeScanned={handleScan} />
-      <View style={styles.overlay} pointerEvents="none">
-        <View style={styles.frame} />
-        <Text style={styles.overlayText}>{t('scanHint')}</Text>
+    <View style={styles.container}>
+      <View style={styles.statusBar}>
+        <Text style={styles.statusText} numberOfLines={2}>{`${VERSION} - ${engine} camera - ${status}`}</Text>
+      </View>
+      <View style={styles.cameraArea}>
+        {renderCamera()}
+        <View style={styles.overlay} pointerEvents="none">
+          <View style={styles.frame} />
+        </View>
+      </View>
+      <View style={styles.controls}>
+        <View style={{ flex: 1 }}><Button title="Restart camera" kind="ghost" onPress={() => startCamera(500)} /></View>
+        <View style={{ width: 10 }} />
+        <View style={{ flex: 1 }}><Button title="Switch engine" kind="ghost" onPress={switchEngine} /></View>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.bg },
+  statusBar: { backgroundColor: colors.surface, paddingHorizontal: 14, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
+  statusText: { color: colors.text, fontSize: 13 },
+  cameraArea: { flex: 1, backgroundColor: '#000', overflow: 'hidden' },
+  placeholder: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center' },
+  overlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  frame: { width: 250, height: 250, borderRadius: 24, borderWidth: 4, borderColor: '#ffffffcc' },
+  controls: { flexDirection: 'row', padding: 12, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border },
   center: { flexGrow: 1, flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28, backgroundColor: colors.bg },
   hint: { color: colors.muted, textAlign: 'center', marginTop: 10, fontSize: 16 },
   icon: { fontSize: 72, fontWeight: '800' },
   resultTitle: { fontSize: 22, fontWeight: '800', color: colors.text, textAlign: 'center' },
-  overlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
-  frame: { width: 250, height: 250, borderRadius: 24, borderWidth: 4, borderColor: '#ffffffcc' },
-  overlayText: { color: '#fff', marginTop: 24, textAlign: 'center', paddingHorizontal: 40, fontSize: 16, textShadowColor: '#000', textShadowRadius: 6 },
 });

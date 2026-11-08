@@ -1,0 +1,5 @@
+run in power shell
+cd C:\Users\balie\OneDrive\Desktop\TheProject\attendance-system\mobile
+
+$env:REACT_NATIVE_PACKAGER_HOSTNAME="172.24.11.37"  // your ip address
+npx expo start --lan -c
